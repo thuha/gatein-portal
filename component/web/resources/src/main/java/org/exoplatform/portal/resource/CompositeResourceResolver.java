@@ -32,8 +32,7 @@ import org.gatein.common.logging.LoggerFactory;
 class CompositeResourceResolver implements ResourceResolver {
 
     /** . */
-    private final Map<SkinKey, SkinConfig> skins;
-
+    private SkinService skinService;
     /**
      * The name of the portal container
      */
@@ -45,9 +44,9 @@ class CompositeResourceResolver implements ResourceResolver {
     /** . */
     private final Logger log = LoggerFactory.getLogger(CompositeResourceResolver.class);
 
-    public CompositeResourceResolver(String portalContainerName, Map<SkinKey, SkinConfig> skins) {
+    public CompositeResourceResolver(String portalContainerName, SkinService skinService) {
         this.portalContainerName = portalContainerName;
-        this.skins = skins;
+        this.skinService = skinService;
         this.prefix = "/" + portalContainerName + "/resource/";
     }
 
@@ -65,8 +64,7 @@ class CompositeResourceResolver implements ResourceResolver {
             for (int i = 0; i < len; i += 2) {
                 String name = Codec.decode(blah[i]);
                 String module = Codec.decode(blah[i + 1]);
-                SkinKey key = new SkinKey(module, name);
-                SkinConfig skin = skins.get(key);
+                SkinConfig skin = skinService.getSkin(module, name);
                 if (skin != null) {
                     sb.append("@import url(").append(skin.getCSSPath()).append(");").append("\n");
                 }

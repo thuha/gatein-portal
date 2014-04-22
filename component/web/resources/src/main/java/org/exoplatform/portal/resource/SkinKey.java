@@ -19,6 +19,13 @@
 
 package org.exoplatform.portal.resource;
 
+import javax.jcr.RepositoryException;
+
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.services.jcr.RepositoryService;
+import org.exoplatform.services.jcr.config.RepositoryConfigurationException;
+import org.exoplatform.services.jcr.core.ManageableRepository;
+
 /**
  * A key for skin config lookup.
  *
@@ -30,6 +37,8 @@ class SkinKey {
     private final String module;
 
     private final String name;
+
+    private final String repositoryName;
 
     private final int hashCode;
 
@@ -47,11 +56,10 @@ class SkinKey {
         if (name == null) {
             throw new IllegalArgumentException("No null skin name accepted");
         }
-
-        //
+        this.repositoryName = getCurrentRepositoryName();
         this.module = module;
         this.name = name;
-        this.hashCode = module.hashCode() * 41 + name.hashCode();
+        this.hashCode = repositoryName.hashCode()*31 + module.hashCode() * 41 + name.hashCode();
     }
 
     public String getModule() {
@@ -75,12 +83,28 @@ class SkinKey {
         }
         if (obj instanceof SkinKey) {
             SkinKey that = (SkinKey) obj;
-            return that.module.equals(module) && that.name.equals(name);
+            return that.repositoryName.equals(repositoryName) && that.module.equals(module) && that.name.equals(name);
         }
         return false;
     }
 
     public String toString() {
         return "SkinKey[base=" + module + ",name=" + name + "]";
+    }
+
+    /**
+     * Gets the current repository name.
+     */
+    private static String getCurrentRepositoryName() {
+      RepositoryService repositoryService = (RepositoryService) PortalContainer.getInstance()
+                                                                               .getComponentInstanceOfType(RepositoryService.class);
+      try {
+        ManageableRepository repo = repositoryService.getCurrentRepository();
+        return (repo != null) ? repo.getConfiguration().getName() : repositoryService.getDefaultRepository().getConfiguration().getName();
+      } catch (RepositoryException e) {
+        throw new RuntimeException(e);
+      } catch (RepositoryConfigurationException e){
+        throw new RuntimeException(e);
+      }
     }
 }

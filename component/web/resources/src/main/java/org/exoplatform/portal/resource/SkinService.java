@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.jcr.RepositoryException;
 import javax.servlet.ServletContext;
 
 import org.exoplatform.commons.cache.future.FutureMap;
@@ -43,7 +44,9 @@ import org.exoplatform.commons.utils.BinaryOutput;
 import org.exoplatform.commons.utils.ByteArrayOutput;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.commons.utils.Safe;
+import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
 import org.exoplatform.management.annotations.Impact;
 import org.exoplatform.management.annotations.ImpactType;
 import org.exoplatform.management.annotations.Managed;
@@ -54,6 +57,7 @@ import org.exoplatform.management.jmx.annotations.Property;
 import org.exoplatform.management.rest.annotations.RESTEndpoint;
 import org.exoplatform.portal.resource.compressor.ResourceCompressor;
 import org.exoplatform.portal.resource.compressor.ResourceType;
+import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.Orientation;
@@ -155,6 +159,8 @@ public class SkinService extends AbstractResourceService implements Startable {
         super(compressor);
         Loader<String, CachedStylesheet, SkinContext> loader = new Loader<String, CachedStylesheet, SkinContext>() {
             public CachedStylesheet retrieve(SkinContext context, String key) throws Exception {
+                //remove repositoryName in key value if exist
+                key = key.substring(key.indexOf(":")+1);
                 Resource skin = getCSSResource(key, key);
                 if (skin == null) {
                     return null;
@@ -187,7 +193,7 @@ public class SkinService extends AbstractResourceService implements Startable {
         deployer = new GateInSkinConfigDeployer(portalContainerName, this);
         removal = new GateInSkinConfigRemoval(this);
 
-        addResourceResolver(new CompositeResourceResolver(portalContainerName, skinConfigs_));
+        addResourceResolver(new CompositeResourceResolver(portalContainerName, this));
     }
 
     /**
@@ -365,8 +371,7 @@ public class SkinService extends AbstractResourceService implements Startable {
         if (skinConfig == null) {
             skinConfigs_.put(key, new SimpleSkin(this, module, skinName, cssPath));
         }
-        ltCache.remove(cssPath);
-        rtCache.remove(cssPath);
+        invalidateCachedSkin(cssPath);
     }
 
     /**
@@ -455,8 +460,8 @@ public class SkinService extends AbstractResourceService implements Startable {
 
         Orientation orientation = "rt".equals(dir) ? Orientation.RT : Orientation.LT;
 
-        // Check if it is running under developing mode
         String resource = "/" + context.getParameter(ResourceRequestHandler.RESOURCE_QN) + ".css";
+        // Check if it is running under developing mode
         if (!compress) {
             StringBuffer sb = new StringBuffer();
             Resource skin = getCSSResource(resource, resource);
@@ -468,7 +473,8 @@ public class SkinService extends AbstractResourceService implements Startable {
             }
         } else {
             FutureMap<String, CachedStylesheet, SkinContext> cache = orientation == Orientation.LT ? ltCache : rtCache;
-            CachedStylesheet cachedCss = cache.get(new SkinContext(context, orientation), resource);
+            String currentRepoName = getCurrentRepositoryName();
+            CachedStylesheet cachedCss = cache.get(new SkinContext(context, orientation), currentRepoName+":"+resource);
             if (cachedCss != null) {
                 renderer.setExpiration(MAX_AGE);
                 cachedCss.writeTo(renderer.getOutput());
@@ -557,8 +563,9 @@ public class SkinService extends AbstractResourceService implements Startable {
      * @param path the key
      */
     public void invalidateCachedSkin(String path) {
-        ltCache.remove(path);
-        rtCache.remove(path);
+      String currentRepoName = getCurrentRepositoryName();
+      ltCache.remove(currentRepoName+":"+path);
+      rtCache.remove(currentRepoName+":"+path);
     }
 
     /**
@@ -893,5 +900,18 @@ public class SkinService extends AbstractResourceService implements Startable {
     public void stop() {
         ServletContainerFactory.getServletContainer().removeWebAppListener(deployer);
         ServletContainerFactory.getServletContainer().removeWebAppListener(removal);
+    }
+
+    /**
+     * Gets the current repository name.
+     */
+    private static String getCurrentRepositoryName() {
+      RepositoryService repositoryService = (RepositoryService) PortalContainer.getInstance()
+                                                                               .getComponentInstanceOfType(RepositoryService.class);
+      try {
+        return repositoryService.getCurrentRepository().getConfiguration().getName();
+      } catch (RepositoryException e) {
+        throw new RuntimeException(e);
+      }
     }
 }

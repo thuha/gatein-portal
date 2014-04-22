@@ -44,7 +44,8 @@ import org.exoplatform.web.ControllerContext;
 import org.exoplatform.web.controller.QualifiedName;
 import org.exoplatform.web.controller.router.Router;
 
-@ConfiguredBy({ @ConfigurationUnit(scope = ContainerScope.PORTAL, path = "conf/test-configuration.xml") })
+@ConfiguredBy({ @ConfigurationUnit(scope = ContainerScope.PORTAL, path = "conf/exo.portal.component.test.jcr-configuration.xml"),
+                @ConfigurationUnit(scope = ContainerScope.PORTAL, path = "conf/test-configuration.xml") })
 public abstract class AbstractSkinServiceTest extends AbstractKernelTest {
     // The value must be the same with the version property in
     // META-INF/maven/org.gatein.portal/exo.portal.component.web.resources/pom.properties
