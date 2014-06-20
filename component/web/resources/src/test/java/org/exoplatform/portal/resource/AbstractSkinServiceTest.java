@@ -18,8 +18,6 @@
  */
 package org.exoplatform.portal.resource;
 
-import org.exoplatform.commons.utils.PropertyManager;
-
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -32,6 +30,7 @@ import java.util.Set;
 
 import javax.servlet.ServletContext;
 
+import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.commons.xml.DocumentSource;
 import org.exoplatform.component.test.AbstractKernelTest;
 import org.exoplatform.component.test.ConfigurationUnit;
